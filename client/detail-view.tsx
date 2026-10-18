@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import {
+  attachmentGetCommand,
   PRIORITY_LABELS,
   STATUS_LABELS,
   TASK_PRIORITIES,
@@ -1569,7 +1570,7 @@ export function TaskDetailView({
                 onPress={async () => {
                   try {
                     await copyText(
-                      `paseo-tasks attachment get ${att.id} --out ./${att.fileName}`,
+                      attachmentGetCommand(att.id, att.fileName),
                     );
                     toast.show("Copied CLI download command", {
                       variant: "success",

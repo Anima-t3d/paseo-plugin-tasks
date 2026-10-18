@@ -126,3 +126,12 @@ You have access to the Paseo Tasks tracker via both the \`paseo-tasks\` CLI (als
 - Attach/detach your agent session: \`paseo-tasks attach ABC-12\` and \`paseo-tasks detach ABC-12\`
 - When referring to a task in your reply, emit \`::task{key="ABC-12"}\` on its own line to render a live task card.`;
 }
+
+/** Quote a value as one literal POSIX shell argument. */
+export function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+export function attachmentGetCommand(id: string, fileName: string): string {
+  return `paseo-tasks attachment get ${id} --out ${shellQuote(`./${fileName}`)}`;
+}
