@@ -138,6 +138,30 @@ describe("paseo-plugin-tasks", () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
+  it("rejects invalid preset permissions without corrupting the database and recovers old rows", async () => {
+    const preset = domain.listPresets().presets[0]!;
+    const result = await runTasksCli(["preset", "update", preset.id, "--permission", "default"], store, domain);
+    expect(result.exitCode).not.toBe(0);
+    expect(domain.listPresets().presets.find((p) => p.id === preset.id)?.permissionMode).toBe(preset.permissionMode);
+    expect(() => store.tasks.updatePreset(preset.id, { permissionMode: "default" as never })).toThrow();
+    store.db.prepare("UPDATE presets SET permission_mode = ? WHERE id = ?").run("default", preset.id);
+    expect(domain.listPresets().presets.find((p) => p.id === preset.id)?.permissionMode).toBe("accept-edits");
+    store.ensureDefaultPresets();
+  });
+
+  it("sends command-code a supported mode and rejects unknown full-access modes before creating a workspace", async () => {
+    const project = domain.createProject({ name: "Demo", prefix: "DEMO", color: "blue", linkedBbProjectId: "prj_demo123" }).project;
+    const task = domain.createTask({ projectId: project.id, title: "Example", status: "todo", priority: "medium" });
+    if (!task.ok) throw new Error("task creation failed");
+    const preset = domain.listPresets().presets[0]!;
+    domain.updatePreset({ presetId: preset.id, providerId: "command-code", modelId: "demo", permissionMode: "full" });
+    await domain.delegate({ taskId: task.task.id, presetId: preset.id });
+    expect(createdAgents[0]?.config).toMatchObject({ modeId: "bypass" });
+    domain.updatePreset({ presetId: preset.id, providerId: "unknown-provider" });
+    await expect(domain.delegate({ taskId: task.task.id, presetId: preset.id })).rejects.toThrow("Full permission mode is not supported");
+    expect(createdWorkspaces).toHaveLength(1);
+  });
+
   it("creates folders, projects, labels, tasks, subtasks, moves across projects with key aliases, and enforces cursor revisions", () => {
     const folder = domain.createFolder({ name: "Engineering" }).folder;
     const prod = domain.createProject({
