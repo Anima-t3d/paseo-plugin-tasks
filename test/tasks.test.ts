@@ -405,7 +405,43 @@ describe("paseo-plugin-tasks", () => {
           },
         }),
       }).then((r) => r.json());
-      expect(mcpCall.result.isError).toBe(false);
+      // A submission with no evidence is refused, and the card does not move: review must not
+      // become a rubber stamp for a claim.
+      expect(mcpCall.result.isError).toBe(true);
+      expect(mcpCall.result.content[0].text).toContain("carries no evidence block");
+      expect(domain.getTaskByKey({ taskKey: "TASKS-1" }).task?.status).not.toBe(
+        "in_review",
+      );
+
+      // With an evidence block on the card, the same submission is accepted.
+      const target = domain.getTaskByKey({ taskKey: "TASKS-1" }).task;
+      expect(target).toBeDefined();
+      await domain.createComment({
+        taskId: target!.id,
+        kind: "user",
+        authorName: "gate",
+        body: "**Evidence for `TASKS-1`** — PASS WITH GAPS\n\n**What ran**\n- tests → pass\n\n**What was not covered**\n- nothing identified",
+        notify: false,
+        awaitDelivery: false,
+      });
+      const resubmit = await fetch(`${bridge.url}/mcp`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${bridge.token}`,
+          "x-paseo-agent-id": "agent-uuid-1001",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 3,
+          method: "tools/call",
+          params: {
+            name: "tasks_update",
+            arguments: { key: "TASKS-1", status: "in_review" },
+          },
+        }),
+      }).then((r) => r.json());
+      expect(resubmit.result.isError).toBe(false);
       expect(domain.getTaskByKey({ taskKey: "TASKS-1" }).task?.status).toBe(
         "in_review",
       );

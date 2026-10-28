@@ -561,6 +561,11 @@ function mapPermissionModeToModeId(
   if (provider === "claude") return permissionMode === "full" ? "bypassPermissions" : permissionMode === "auto" ? "auto" : "acceptEdits";
   if (provider === "codex") return permissionMode === "full" ? "full-access" : "auto";
   if (provider === "command-code" && permissionMode === "full") return "bypass";
+  // command-code is an ACP provider: it advertises default/auto-accept/plan/dont-ask/bypass and has
+  // no "accept-edits". Returning undefined here is not the safe choice — it selects "ask", so a
+  // preset that says accept-edits prompts for every single edit. Map it to the mode that means the
+  // same thing; a provider that refuses it can still fall back to its own default.
+  if (provider === "command-code") return "auto-accept";
   if (permissionMode === "full") throw new Error(`Full permission mode is not supported for provider "${providerId}".`);
   // Other providers expose their own mode IDs. Let the provider choose its
   // default instead of sending an unsupported or overly permissive mode.

@@ -386,11 +386,70 @@ async function executeMcpToolCall(
       };
   }
 
+  // A SUBMISSION MUST CARRY EVIDENCE. in_review means "look at this", so the card has to hold an
+  // evidence block already -- otherwise review degrades to trusting the agent's prose, which is
+  // exactly what a gate is for. This runs BEFORE the update, so a refusal changes nothing. The CLI
+  // path stays ungated so a human keeps an escape hatch, and PASEO_TASKS_REQUIRE_EVIDENCE=0 turns
+  // the check off on the daemon.
+  if (name === "tasks_update" && args.status === "in_review"
+      && process.env.PASEO_TASKS_REQUIRE_EVIDENCE !== "0") {
+    const key = String(args.key ?? "");
+    const shown = await runTasksCli(["show", key, "--json"], store, domain, { threadId });
+    const verdict = evidenceVerdict(shown.stdout);
+    if (verdict === null) {
+      return {
+        isError: true,
+        content: [{
+          type: "text",
+          text:
+            `Refusing to move ${key} to in_review: the card carries no evidence block.\n` +
+            `Comment the evidence first (what ran, what it produced, and what was NOT covered), ` +
+            `then submit. Set PASEO_TASKS_REQUIRE_EVIDENCE=0 on the daemon to disable this check.`,
+        }],
+      };
+    }
+    if (verdict === "INCOMPLETE" || verdict === "FAILED CHECK" || verdict === "NOTHING CHECKABLE") {
+      return {
+        isError: true,
+        content: [{
+          type: "text",
+          text:
+            `Refusing to move ${key} to in_review: its latest evidence block reads "${verdict}". ` +
+            `An incomplete, failed or unreadable run has nothing for a human to review.`,
+        }],
+      };
+    }
+  }
+
   const res = await runTasksCli(argv, store, domain, { threadId });
   return {
     isError: res.exitCode !== 0,
     content: [{ type: "text", text: res.stdout || res.stderr || "" }],
   };
+}
+
+/**
+ * Verdict from the newest evidence comment, or null when the card carries none.
+ *
+ * The shape is deliberately literal, so any stamper can satisfy it without importing this
+ * package: a heading naming the task, a verdict, and a "what was not covered" section.
+ */
+export function evidenceVerdict(showJson: string): string | null {
+  let parsed: { comments?: Array<{ body?: string }> };
+  try {
+    parsed = JSON.parse(showJson);
+  } catch {
+    return null;
+  }
+  const comments = parsed.comments ?? [];
+  for (let i = comments.length - 1; i >= 0; i -= 1) {
+    const body = String(comments[i]?.body ?? "");
+    if (!body.includes("**Evidence for `")) continue;
+    if (!body.includes("**What was not covered**")) return "INCOMPLETE";
+    const match = body.match(/— (PASS WITH GAPS|PASS|FAILED CHECK|NOTHING CHECKABLE)/);
+    return match ? match[1] : "INCOMPLETE";
+  }
+  return null;
 }
 
 function needsPaseo(argv: readonly string[]): boolean {
