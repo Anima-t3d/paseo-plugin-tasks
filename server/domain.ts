@@ -451,7 +451,8 @@ export function buildSeedPrompt(input: SeedPromptInput): string {
     markdownSection("Recent comments", formatComments(input.recentComments)),
     markdownSection(
       "Report-back contract",
-      `You are working on task ${input.task.key}. Use the \`paseo-tasks\` CLI (or \`bb tasks\` / MCP \`tasks_*\` tools): comment substantive updates (\`paseo-tasks comment ${input.task.key} --body "..."\`), attach result artifacts, and set status when done (\`paseo-tasks update ${input.task.key} --status in_review\`) or explain any blocker in a comment. Emit \`::task{key="${input.task.key}"}\` on its own line when referencing this task in your reply. Your agent session is already attached to the task.`,
+      `You are working on task ${input.task.key}. Use the \`paseo-tasks\` CLI (or \`bb tasks\` / MCP \`tasks_*\` tools): comment substantive updates (\`paseo-tasks comment ${input.task.key} --body "..."\`), attach result artifacts, and set status when done (\`paseo-tasks update ${input.task.key} --status in_review\`) or explain any blocker in a comment. Emit \`::task{key="${input.task.key}"}\` on its own line when referencing this task in your reply. Your agent session is already attached to the task.\n\n` +
+      `Before moving this task to in_review or done, add a comment headed **Evidence for \`${input.task.key}\`** — VERDICT, followed by nonempty **What ran** and **What was not covered** sections. Choose PASS, PASS WITH GAPS, FAILED CHECK, NOTHING CHECKABLE, or BLOCKED. Explain failures and gaps so a person can review them. Done requires PASS or PASS WITH GAPS.`,
     ),
   ];
 
@@ -561,11 +562,6 @@ function mapPermissionModeToModeId(
   if (provider === "claude") return permissionMode === "full" ? "bypassPermissions" : permissionMode === "auto" ? "auto" : "acceptEdits";
   if (provider === "codex") return permissionMode === "full" ? "full-access" : "auto";
   if (provider === "command-code" && permissionMode === "full") return "bypass";
-  // command-code is an ACP provider: it advertises default/auto-accept/plan/dont-ask/bypass and has
-  // no "accept-edits". Returning undefined here is not the safe choice — it selects "ask", so a
-  // preset that says accept-edits prompts for every single edit. Map it to the mode that means the
-  // same thing; a provider that refuses it can still fall back to its own default.
-  if (provider === "command-code") return "auto-accept";
   if (permissionMode === "full") throw new Error(`Full permission mode is not supported for provider "${providerId}".`);
   // Other providers expose their own mode IDs. Let the provider choose its
   // default instead of sending an unsupported or overly permissive mode.

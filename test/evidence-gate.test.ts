@@ -1,44 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { evidenceVerdict } from "../server/bridge";
+import { reviewEvidenceVerdict } from "../server/review-evidence";
+const hasReviewEvidence = (...args: Parameters<typeof reviewEvidenceVerdict>) => reviewEvidenceVerdict(...args) !== null;
 
-const show = (bodies: string[]) => JSON.stringify({ comments: bodies.map((body) => ({ body })) });
+const evidence = (key: string, verdict: string, ran = "Tests passed", gaps = "None") =>
+  `**Evidence for \`${key}\`** — ${verdict}\n\n**What ran**\n${ran}\n\n**What was not covered**\n${gaps}`;
+const user = (body: string) => ({ kind: "user", body });
 
-describe("evidenceVerdict", () => {
-  it("returns null when the card carries no evidence block", () => {
-    expect(evidenceVerdict(show(["Dispatched to pilot-wt", "looks good to me"]))).toBeNull();
-    expect(evidenceVerdict("not json")).toBeNull();
-    expect(evidenceVerdict(JSON.stringify({}))).toBeNull();
+describe("review evidence", () => {
+  it.each(["PASS", "PASS WITH GAPS", "FAILED CHECK", "NOTHING CHECKABLE", "BLOCKED"])("accepts %s with results and gaps", (verdict) => {
+    expect(hasReviewEvidence([user(evidence("TASKS-1", verdict))], "TASKS-1")).toBe(true);
   });
-
-  it("reads the verdict from the newest evidence block", () => {
-    expect(evidenceVerdict(show([
-      "**Evidence for `TASKS-1`** — FAILED CHECK\n\n**What was not covered**\n- x",
-      "**Evidence for `TASKS-1`** — PASS\n\n**What was not covered**\n- nothing identified",
-    ]))).toBe("PASS");
+  it("requires the right task, a verdict on its heading, and nonempty sections", () => {
+    expect(hasReviewEvidence([user(evidence("OTHER-1", "PASS"))], "TASKS-1")).toBe(false);
+    expect(hasReviewEvidence([user(`Previous — PASS\n${evidence("TASKS-1", "FAILED CHECK").replace(" — FAILED CHECK", "")}`)], "TASKS-1")).toBe(false);
+    expect(hasReviewEvidence([user(evidence("TASKS-1", "PASS", "", "None"))], "TASKS-1")).toBe(false);
+    expect(hasReviewEvidence([user(evidence("TASKS-1", "PASS", "Done", ""))], "TASKS-1")).toBe(false);
   });
-
-  it("accepts a pass with gaps", () => {
-    expect(evidenceVerdict(show([
-      "**Evidence for `TASKS-1`** — PASS WITH GAPS\n\n**What was not covered**\n- shellcheck did not run",
-    ]))).toBe("PASS WITH GAPS");
+  it("does not reuse evidence after the card returns to an active state", () => {
+    const old = user(evidence("TASKS-1", "PASS"));
+    const reopened = { kind: "system", body: "Status changed to In Progress by You" };
+    expect(hasReviewEvidence([old, reopened], "TASKS-1")).toBe(false);
+    expect(hasReviewEvidence([old, reopened, user(evidence("TASKS-1", "BLOCKED"))], "TASKS-1")).toBe(true);
+    expect(hasReviewEvidence([old, { kind: "system", body: "Dispatched to agent" }], "TASKS-1")).toBe(false);
   });
-
-  it("treats a block with no verdict line as incomplete", () => {
-    expect(evidenceVerdict(show([
-      "**Evidence for `TASKS-1`**\n\n**What was not covered**\n- everything",
-    ]))).toBe("INCOMPLETE");
-  });
-
-  it("treats a block with no 'what was not covered' section as incomplete", () => {
-    // The gap list is the part that stops a submission from being a bare claim, so a block
-    // without it must not pass.
-    expect(evidenceVerdict(show(["**Evidence for `TASKS-1`** — PASS"]))).toBe("INCOMPLETE");
-  });
-
-  it("keeps reading older comments until it finds an evidence block", () => {
-    expect(evidenceVerdict(show([
-      "**Evidence for `TASKS-1`** — PASS\n\n**What was not covered**\n- x",
-      "thanks, shipping this",
-    ]))).toBe("PASS");
+  it("uses the latest evidence and does not let normal comments reset it", () => {
+    expect(hasReviewEvidence([user(evidence("TASKS-1", "PASS")), user("notes")], "TASKS-1")).toBe(true);
+    expect(hasReviewEvidence([user(evidence("TASKS-1", "PASS")), user("**Evidence for `TASKS-1`** — PASS")], "TASKS-1")).toBe(false);
   });
 });
