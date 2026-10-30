@@ -89,7 +89,7 @@ Describe checks and results, or explain why none ran.
 Describe gaps or blockers, or say none.
 ```
 
-Choose one verdict: `PASS`, `PASS WITH GAPS`, `FAILED CHECK`, `NOTHING CHECKABLE`, or `BLOCKED`. Any verdict can enter review; `done` requires `PASS` or `PASS WITH GAPS`. Dispatching an agent or returning the card to an active state requires a new comment. This checks the comment's format; it does not verify its claims. The app's board and task controls remain available for manual changes. To disable the CLI and MCP check, set `PASEO_TASKS_REQUIRE_EVIDENCE=0` in the daemon environment.
+Choose one verdict: `PASS`, `PASS WITH GAPS`, `FAILED CHECK`, `NOTHING CHECKABLE`, or `BLOCKED`. Any verdict can enter review; `done` requires `PASS`, `PASS WITH GAPS`, or `NOTHING CHECKABLE`. Dispatching an agent or returning the card to an active state requires a new comment. This checks the comment's format; it does not verify its claims. The app's board and task controls remain available for manual changes. To disable the CLI and MCP check, set `PASEO_TASKS_REQUIRE_EVIDENCE=0` in the daemon environment.
 
 ### Task cards in replies
 

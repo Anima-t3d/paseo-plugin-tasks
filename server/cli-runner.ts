@@ -1017,7 +1017,7 @@ export async function runTasksCli(
       if ((status === "in_review" || status === "done") && status !== task.status &&
           process.env.PASEO_TASKS_REQUIRE_EVIDENCE !== "0") {
         const verdict = reviewEvidenceVerdict(store.tasks.listComments(task.id), task.key);
-        if (!verdict || (status === "done" && verdict !== "PASS" && verdict !== "PASS WITH GAPS")) {
+        if (!verdict || (status === "done" && verdict !== "PASS" && verdict !== "PASS WITH GAPS" && verdict !== "NOTHING CHECKABLE")) {
           throw new TasksCliError(reviewEvidenceInstructions(task.key), { code: "review_evidence_required" });
         }
       }

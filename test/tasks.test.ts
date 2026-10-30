@@ -166,6 +166,9 @@ describe("paseo-plugin-tasks", () => {
     expect((await attempt("in_review")).exitCode).not.toBe(0);
     await domain.createComment({ taskId: task.id, body: "**Evidence for `REV-1`** — BLOCKED\n\n**What ran**\nNo checks could run.\n\n**What was not covered**\nWaiting for credentials.", notify: false });
     expect((await attempt("in_review")).exitCode).toBe(0);
+    expect((await attempt("done")).exitCode).not.toBe(0);
+    await domain.createComment({ taskId: task.id, body: "**Evidence for `REV-1`** — NOTHING CHECKABLE\n\n**What ran**\nNo automated checks apply.\n\n**What was not covered**\nNo tests apply to this task.", notify: false });
+    expect((await attempt("done")).exitCode).toBe(0);
   });
 
   it("sends command-code a supported mode and rejects unknown full-access modes before creating a workspace", async () => {

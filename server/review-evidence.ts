@@ -24,5 +24,5 @@ export function reviewEvidenceInstructions(key: string): string {
     `**Evidence for \`${key}\`** — PASS WITH GAPS\n\n` +
     `**What ran**\nDescribe checks and results, or explain why none ran.\n\n` +
     `**What was not covered**\nDescribe gaps or blockers, or say none.\n\n` +
-    `Choose one verdict: PASS, PASS WITH GAPS, FAILED CHECK, NOTHING CHECKABLE, or BLOCKED. Done requires PASS or PASS WITH GAPS. A person can also change the status in the app.`;
+    `Choose one verdict: PASS, PASS WITH GAPS, FAILED CHECK, NOTHING CHECKABLE, or BLOCKED. Done requires PASS, PASS WITH GAPS, or NOTHING CHECKABLE. A person can also change the status in the app.`;
 }
